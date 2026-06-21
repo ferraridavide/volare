@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { adjustCameraFromDrag, calculateCameraPose, smoothCameraPose } from './camera';
-import { calculateVariometerMps, interpolateFlight, locateTrackDistance } from './flight';
+import {
+  calculateInstantaneousVariometerMps,
+  calculateSmoothedVariometerMps,
+  calculateUpdatedSmoothedVariometerMps,
+  calculateVariometerScaleMps,
+  calculateVariometerMps,
+  interpolateFlight,
+  locateTrackDistance,
+} from './flight';
 import { calculateDistanceMeters } from './geo';
 import { parseIgc } from './igc';
 import {
@@ -67,6 +75,42 @@ describe('flight interpolation', () => {
     expect(calculateVariometerMps(track, 15.01, 2, 15)).toBe(
       calculateVariometerMps(track, 16.99, 2, 15),
     );
+  });
+
+  it('calculates instantaneous variometer from the current track segment', () => {
+    const track = parseIgc(TRACK_TEXT);
+    track.fixes[2]!.altitudeMeters = 1300;
+
+    expect(calculateInstantaneousVariometerMps(track, 5)).toBeCloseTo(10);
+    expect(calculateInstantaneousVariometerMps(track, 15)).toBeCloseTo(20);
+  });
+
+  it('calculates variometer over a continuous moving-average time window', () => {
+    const track = parseIgc(TRACK_TEXT);
+    track.fixes[1]!.altitudeMeters = 1010;
+    track.fixes[2]!.altitudeMeters = 1060;
+
+    expect(calculateSmoothedVariometerMps(track, 10, 5)).toBeCloseTo(1);
+    expect(calculateSmoothedVariometerMps(track, 15, 10)).toBeCloseTo(3);
+    expect(calculateSmoothedVariometerMps(track, 20, 10)).toBeCloseTo(5);
+  });
+
+  it('holds the smoothed variometer at the configured update cadence', () => {
+    const track = parseIgc(TRACK_TEXT);
+    track.fixes[1]!.altitudeMeters = 1010;
+    track.fixes[2]!.altitudeMeters = 1060;
+
+    expect(calculateUpdatedSmoothedVariometerMps(track, 15.1, 5, 10)).toBeCloseTo(3);
+    expect(calculateUpdatedSmoothedVariometerMps(track, 19.9, 5, 10)).toBeCloseTo(3);
+    expect(calculateUpdatedSmoothedVariometerMps(track, 15.1, 5, 5)).toBeCloseTo(5);
+  });
+
+  it('adds ten percent headroom to the largest full-flight variometer magnitude', () => {
+    const track = parseIgc(TRACK_TEXT);
+    track.fixes[1]!.altitudeMeters = 1010;
+    track.fixes[2]!.altitudeMeters = 1060;
+
+    expect(calculateVariometerScaleMps(track, 10)).toBeCloseTo(5.5);
   });
 
   it('maps output time into the selected flight range', () => {

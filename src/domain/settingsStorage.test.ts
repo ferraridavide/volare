@@ -144,4 +144,39 @@ describe('settings preset storage', () => {
 
     expect(loadSettingsPreset().overlay).not.toHaveProperty('variometerSamples');
   });
+
+  it('adds the playback-time meter moving average to version 8 presets', () => {
+    const legacySettings = createDefaultSettings();
+    const legacyOverlay = Object.fromEntries(
+      Object.entries(legacySettings.overlay).filter(
+        ([key]) => key !== 'variometerMeterAverageSeconds',
+      ),
+    );
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        version: 8,
+        settings: {
+          ...legacySettings,
+          overlay: { ...legacyOverlay, variometerMeterSamples: 5 },
+        },
+      }),
+    );
+
+    expect(loadSettingsPreset().overlay.variometerMeterAverageSeconds).toBe(0.3);
+    expect(loadSettingsPreset().overlay).not.toHaveProperty('variometerMeterSamples');
+  });
+
+  it('adds the gauge toggle to version 9 presets', () => {
+    const legacySettings = createDefaultSettings();
+    const legacyOverlay = Object.fromEntries(
+      Object.entries(legacySettings.overlay).filter(([key]) => key !== 'variometerGauge'),
+    );
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ version: 9, settings: { ...legacySettings, overlay: legacyOverlay } }),
+    );
+
+    expect(loadSettingsPreset().overlay.variometerGauge).toBe(true);
+  });
 });

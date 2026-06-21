@@ -36,15 +36,17 @@ test('loads and scrubs a local flight', async ({ page }) => {
   await expect(scrubber).toHaveValue('10');
   await expect(page.getByLabel('Flight statistics')).toContainText('Altitude');
 
+  await page.getByLabel('Resolution').selectOption('4k');
   await page.getByLabel('Aspect ratio').selectOption('vertical');
   await expect(page.locator('.viewport-frame')).toHaveClass(/viewport-frame--vertical/);
   await expect(page.getByLabel('Resolution').locator('option:checked')).toContainText('2160×3840');
 
   await page.getByText('Track style', { exact: true }).click();
   const ghostRoute = page.getByLabel('Show ghost route');
-  await page.getByText('Show ghost route', { exact: true }).click();
   await expect(ghostRoute).not.toBeChecked();
-  await page.getByText('Limit trail length', { exact: true }).click();
+  await page.getByText('Show ghost route', { exact: true }).click();
+  await expect(ghostRoute).toBeChecked();
+  await expect(page.getByLabel('Limit trail length')).toBeChecked();
   await page.getByLabel('Trail length value').fill('500');
   await expect(page.getByLabel('Trail length value')).toHaveValue('500');
   await page.getByLabel('Trail border value').fill('2');

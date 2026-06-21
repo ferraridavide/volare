@@ -9,7 +9,9 @@ import {
 
 import {
   calculateSegmentDistanceMeters,
-  calculateVariometerMps,
+  calculateSmoothedVariometerMps,
+  calculateUpdatedSmoothedVariometerMps,
+  calculateVariometerScaleMps,
   interpolateFlight,
 } from '@/domain/flight';
 import { interpolateCameraSettings } from '@/domain/keyframes';
@@ -17,7 +19,7 @@ import { calculateFlightSecondsPerVideoSecond, getOutputDimensions } from '@/dom
 import type { FlightTrack, ProjectSettings, RenderJob } from '@/domain/types';
 import type { CesiumFlightScene } from '@/scene/CesiumFlightScene';
 
-import { paintStatsOverlay, paintWatermark } from './overlayPainter';
+import { paintStatsOverlay, paintVariometerGauge, paintWatermark } from './overlayPainter';
 import { buildFrameSchedule, isAbortError, waitForTilesWithRetry } from './renderUtils';
 
 export interface VideoExportOptions {
@@ -46,6 +48,13 @@ export async function exportFlightVideo(options: VideoExportOptions): Promise<vo
     chunkSize: 16 * 1024 * 1024,
   });
   const schedule = buildFrameSchedule(options.settings);
+  const flightSecondsPerVideoSecond = calculateFlightSecondsPerVideoSecond(options.settings);
+  const variometerAverageWindowFlightSeconds =
+    options.settings.overlay.variometerMeterAverageSeconds * flightSecondsPerVideoSecond;
+  const variometerScaleMps = calculateVariometerScaleMps(
+    options.track,
+    variometerAverageWindowFlightSeconds,
+  );
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'reserve' }), target });
   const canvas = createExportCanvas(dimensions.width, dimensions.height);
   const source = new CanvasSource(canvas, {
@@ -78,7 +87,15 @@ export async function exportFlightVideo(options: VideoExportOptions): Promise<vo
         schedule.length,
         startedAt,
       );
-      compositeFrame(canvas, options.scene, options.track, options.settings, frame.flightSeconds);
+      compositeFrame(
+        canvas,
+        options.scene,
+        options.track,
+        options.settings,
+        frame.flightSeconds,
+        variometerAverageWindowFlightSeconds,
+        variometerScaleMps,
+      );
       await source.add(frame.videoSeconds, frame.durationSeconds);
       completedFrames += 1;
       reportProgress(
@@ -184,6 +201,8 @@ function compositeFrame(
   track: FlightTrack,
   settings: ProjectSettings,
   flightSeconds: number,
+  variometerAverageWindowFlightSeconds: number,
+  variometerScaleMps: number,
 ): void {
   const context = canvas.getContext('2d', { alpha: false });
   if (!context) throw new Error('Could not create the 2D export canvas context.');
@@ -194,13 +213,20 @@ function compositeFrame(
     flightSeconds,
     settings.trimStartSeconds,
   );
-  const variometer = calculateVariometerMps(
+  const variometer = calculateSmoothedVariometerMps(
+    track,
+    flightSeconds,
+    variometerAverageWindowFlightSeconds,
+  );
+  const updatedVariometer = calculateUpdatedSmoothedVariometerMps(
     track,
     flightSeconds,
     settings.overlay.variometerUpdateRateSeconds * calculateFlightSecondsPerVideoSecond(settings),
+    variometerAverageWindowFlightSeconds,
     settings.trimStartSeconds,
   );
-  paintStatsOverlay(context, canvas, fix, segmentDistance, variometer, settings);
+  paintStatsOverlay(context, canvas, fix, segmentDistance, updatedVariometer, settings);
+  paintVariometerGauge(context, canvas, variometer, variometerScaleMps, settings);
   paintWatermark(context, canvas, settings);
 }
 

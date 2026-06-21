@@ -40,7 +40,9 @@ export function createDefaultSettings(
       altitude: true,
       speed: true,
       variometer: true,
+      variometerGauge: true,
       variometerUpdateRateSeconds: 0.2,
+      variometerMeterAverageSeconds: 0.3,
       distance: true,
       time: true,
       watermark: true,
@@ -116,6 +118,7 @@ export function sanitizeSettings(
     overlay: {
       ...settings.overlay,
       variometerUpdateRateSeconds: clamp(settings.overlay.variometerUpdateRateSeconds, 0.1, 5),
+      variometerMeterAverageSeconds: clamp(settings.overlay.variometerMeterAverageSeconds, 0.1, 5),
       backgroundOpacity: clamp(settings.overlay.backgroundOpacity, 0, 1),
     },
     routeStyle: {

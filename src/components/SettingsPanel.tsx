@@ -260,10 +260,16 @@ export function SettingsPanel({
             onChange={(value) => updateOverlay('speed', value)}
           />
           <ToggleField
-            label="Variometer"
+            label="Variometer data"
             checked={settings.overlay.variometer}
             disabled={disabled || !settings.overlay.enabled}
             onChange={(value) => updateOverlay('variometer', value)}
+          />
+          <ToggleField
+            label="Vario gauge"
+            checked={settings.overlay.variometerGauge}
+            disabled={disabled || !settings.overlay.enabled}
+            onChange={(value) => updateOverlay('variometerGauge', value)}
           />
           <ToggleField
             label="Distance"
@@ -287,6 +293,20 @@ export function SettingsPanel({
           suffix=" playback s"
           disabled={disabled || !settings.overlay.enabled || !settings.overlay.variometer}
           onChange={(value) => updateOverlay('variometerUpdateRateSeconds', value)}
+        />
+        <RangeField
+          label="Meter moving average"
+          value={settings.overlay.variometerMeterAverageSeconds}
+          min={0.1}
+          max={5}
+          step={0.1}
+          suffix=" playback s"
+          disabled={
+            disabled ||
+            !settings.overlay.enabled ||
+            (!settings.overlay.variometer && !settings.overlay.variometerGauge)
+          }
+          onChange={(value) => updateOverlay('variometerMeterAverageSeconds', value)}
         />
         <ToggleField
           label="Show Volare watermark"

@@ -64,6 +64,8 @@ describe('App', () => {
     });
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('expected at least 2'));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss error' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('allows camera values beyond slider limits', () => {
@@ -148,6 +150,17 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Flight statistics')).toHaveTextContent('1,000 m');
     expect(screen.getByLabelText('Flight statistics')).toHaveTextContent('00:00');
+    expect(screen.getByLabelText('Flight statistics')).toHaveTextContent('Vario');
+    expect(screen.getByLabelText('Flight statistics')).toHaveTextContent('+0.00 m/s');
+    expect(screen.getByLabelText(/Variometer meter/)).toHaveTextContent('+0.0m/s');
+    expect(screen.getByLabelText('Meter moving average')).toHaveValue('0.3');
+
+    fireEvent.click(screen.getByLabelText('Vario gauge'));
+    expect(screen.queryByLabelText(/Variometer meter/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Flight statistics')).toHaveTextContent('Vario');
+
+    fireEvent.click(screen.getByLabelText('Variometer data'));
+    expect(screen.getByLabelText('Flight statistics')).not.toHaveTextContent('Vario');
   });
 
   it('confirms before disabling the default watermark', async () => {

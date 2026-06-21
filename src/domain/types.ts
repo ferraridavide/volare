@@ -71,7 +71,9 @@ export interface OverlaySettings {
   altitude: boolean;
   speed: boolean;
   variometer: boolean;
+  variometerGauge: boolean;
   variometerUpdateRateSeconds: number;
+  variometerMeterAverageSeconds: number;
   distance: boolean;
   time: boolean;
   watermark: boolean;

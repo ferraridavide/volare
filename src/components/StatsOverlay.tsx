@@ -1,7 +1,11 @@
+import { useMemo } from 'react';
+
 import { formatAltitude, formatDistance, formatFlightTime, formatSpeed } from '@/domain/format';
 import {
   calculateSegmentDistanceMeters,
-  calculateVariometerMps,
+  calculateSmoothedVariometerMps,
+  calculateUpdatedSmoothedVariometerMps,
+  calculateVariometerScaleMps,
   interpolateFlight,
 } from '@/domain/flight';
 import { calculateFlightSecondsPerVideoSecond } from '@/domain/settings';
@@ -16,11 +20,22 @@ interface StatsOverlayProps {
 export function StatsOverlay({ track, flightSeconds, settings }: StatsOverlayProps) {
   const fix = interpolateFlight(track, flightSeconds);
   const distance = calculateSegmentDistanceMeters(track, flightSeconds, settings.trimStartSeconds);
-  const flightSecondsPerVideoSecond = calculateFlightSecondsPerVideoSecond(settings);
-  const variometer = calculateVariometerMps(
+  const averageWindowFlightSeconds =
+    settings.overlay.variometerMeterAverageSeconds * calculateFlightSecondsPerVideoSecond(settings);
+  const variometerScaleMps = useMemo(
+    () => calculateVariometerScaleMps(track, averageWindowFlightSeconds),
+    [track, averageWindowFlightSeconds],
+  );
+  const variometer = calculateSmoothedVariometerMps(
     track,
     flightSeconds,
-    settings.overlay.variometerUpdateRateSeconds * flightSecondsPerVideoSecond,
+    averageWindowFlightSeconds,
+  );
+  const updatedVariometer = calculateUpdatedSmoothedVariometerMps(
+    track,
+    flightSeconds,
+    settings.overlay.variometerUpdateRateSeconds * calculateFlightSecondsPerVideoSecond(settings),
+    averageWindowFlightSeconds,
     settings.trimStartSeconds,
   );
 
@@ -49,7 +64,7 @@ export function StatsOverlay({ track, flightSeconds, settings }: StatsOverlayPro
           {settings.overlay.variometer && (
             <Stat
               label="Vario"
-              value={`${variometer >= 0 ? '+' : ''}${variometer.toFixed(2)} m/s`}
+              value={`${updatedVariometer >= 0 ? '+' : ''}${updatedVariometer.toFixed(2)} m/s`}
             />
           )}
           {settings.overlay.distance && (
@@ -59,6 +74,9 @@ export function StatsOverlay({ track, flightSeconds, settings }: StatsOverlayPro
             <Stat label="Time" value={formatFlightTime(fix.elapsedSeconds)} />
           )}
         </div>
+      )}
+      {settings.overlay.enabled && settings.overlay.variometerGauge && (
+        <VariometerMeter valueMps={variometer} scaleMps={variometerScaleMps} />
       )}
       {settings.overlay.watermark && (
         <a
@@ -71,6 +89,37 @@ export function StatsOverlay({ track, flightSeconds, settings }: StatsOverlayPro
         </a>
       )}
     </>
+  );
+}
+
+function VariometerMeter({ valueMps, scaleMps }: { valueMps: number; scaleMps: number }) {
+  const clampedValue = Math.max(-scaleMps, Math.min(scaleMps, valueMps));
+  const markerPosition = ((scaleMps - clampedValue) / (scaleMps * 2)) * 100;
+  const levelStart = Math.min(50, markerPosition);
+  const levelEnd = Math.max(50, markerPosition);
+  const formattedValue = `${valueMps >= 0 ? '+' : ''}${valueMps.toFixed(1)}`;
+  const formattedScale = scaleMps.toFixed(1);
+
+  return (
+    <div className="variometer-meter" aria-label={`Variometer meter ${formattedValue} m/s`}>
+      <span className="variometer-meter__limit variometer-meter__limit--top">
+        +{formattedScale}
+      </span>
+      <div className="variometer-meter__scale">
+        <span
+          className="variometer-meter__level"
+          style={{ clipPath: `inset(${levelStart}% 0 ${100 - levelEnd}% 0)` }}
+        />
+        <span className="variometer-meter__zero" />
+      </div>
+      <div className="variometer-meter__value">
+        <strong>{formattedValue}</strong>
+        <span>m/s</span>
+      </div>
+      <span className="variometer-meter__limit variometer-meter__limit--bottom">
+        -{formattedScale}
+      </span>
+    </div>
   );
 }
 

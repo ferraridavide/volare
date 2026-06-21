@@ -3,7 +3,7 @@ import type { ProjectSettings } from './types';
 
 export const SETTINGS_STORAGE_KEY = 'paraglider-render:settings-preset';
 
-const SETTINGS_STORAGE_VERSION = 7;
+const SETTINGS_STORAGE_VERSION = 10;
 
 interface StoredSettingsPreset {
   version: number;
@@ -40,7 +40,9 @@ function migrateStoredSettings(value: unknown, fallback: ProjectSettings): unkno
         : fallback.overlay[key as keyof typeof fallback.overlay],
     ]),
   );
-  if ([3, 4, 5, 6].includes(value.version as number)) return { ...value.settings, overlay };
+  if ([3, 4, 5, 6, 7, 8, 9].includes(value.version as number)) {
+    return { ...value.settings, overlay };
+  }
   if (value.version === 2) {
     return { ...value.settings, cameraKeyframes: [], overlay };
   }

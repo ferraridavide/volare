@@ -81,6 +81,69 @@ export function calculateVariometerMps(
   return (current.altitudeMeters - start.altitudeMeters) / durationSeconds;
 }
 
+export function calculateInstantaneousVariometerMps(
+  track: FlightTrack,
+  elapsedSeconds: number,
+): number {
+  const current = interpolateFlight(track, elapsedSeconds);
+  const lower = track.fixes[current.sourceIndex]!;
+  const upper = track.fixes[current.sourceIndex + 1]!;
+  const durationSeconds = upper.elapsedSeconds - lower.elapsedSeconds;
+  if (durationSeconds <= 0) return 0;
+  return (upper.altitudeMeters - lower.altitudeMeters) / durationSeconds;
+}
+
+export function calculateSmoothedVariometerMps(
+  track: FlightTrack,
+  elapsedSeconds: number,
+  averageWindowFlightSeconds: number,
+): number {
+  const current = interpolateFlight(track, elapsedSeconds);
+  const start = interpolateFlight(
+    track,
+    Math.max(0, current.elapsedSeconds - Math.max(0.001, averageWindowFlightSeconds)),
+  );
+  const durationSeconds = current.elapsedSeconds - start.elapsedSeconds;
+  if (durationSeconds <= 0) return 0;
+  return (current.altitudeMeters - start.altitudeMeters) / durationSeconds;
+}
+
+export function calculateUpdatedSmoothedVariometerMps(
+  track: FlightTrack,
+  elapsedSeconds: number,
+  updateRateFlightSeconds: number,
+  averageWindowFlightSeconds: number,
+  updateAnchorSeconds = 0,
+): number {
+  const updateRate = Math.max(0.001, updateRateFlightSeconds);
+  const elapsedSinceAnchor = Math.max(0, elapsedSeconds - updateAnchorSeconds);
+  const sampledSeconds =
+    updateAnchorSeconds +
+    Math.floor((elapsedSinceAnchor + Number.EPSILON) / updateRate) * updateRate;
+  return calculateSmoothedVariometerMps(track, sampledSeconds, averageWindowFlightSeconds);
+}
+
+export function calculateVariometerScaleMps(
+  track: FlightTrack,
+  averageWindowFlightSeconds: number,
+): number {
+  const windowSeconds = Math.max(0.001, averageWindowFlightSeconds);
+  const candidateTimes = new Set<number>();
+  for (const fix of track.fixes) {
+    candidateTimes.add(fix.elapsedSeconds);
+    const shiftedTime = fix.elapsedSeconds + windowSeconds;
+    if (shiftedTime <= track.durationSeconds) candidateTimes.add(shiftedTime);
+  }
+  let minimum = 0;
+  let maximum = 0;
+  for (const elapsedSeconds of candidateTimes) {
+    const value = calculateSmoothedVariometerMps(track, elapsedSeconds, windowSeconds);
+    minimum = Math.min(minimum, value);
+    maximum = Math.max(maximum, value);
+  }
+  return Math.max(0.1, Math.max(Math.abs(minimum), Math.abs(maximum)) * 1.1);
+}
+
 export function locateTrackDistance(
   track: FlightTrack,
   distanceMeters: number,

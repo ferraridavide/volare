@@ -46,17 +46,44 @@ export function paintStatsOverlay(
   strokeRoundedRect(context, left, top, panelWidth, panelHeight, 10 * scale);
   context.restore();
 
+  const centeredTextOffsetY = 2 * scale;
   entries.forEach((entry, index) => {
     const centerX = left + 17 * scale + rowWidth * (index + 0.5);
     context.textAlign = 'center';
     context.fillStyle = '#f7faf8';
     context.font = `650 ${15 * scale}px Inter, system-ui, sans-serif`;
-    context.fillText(entry.value, centerX, top + 25 * scale);
+    context.fillText(entry.value, centerX, top + 25 * scale + centeredTextOffsetY);
     context.fillStyle = '#c8d1cc';
     context.font = `400 ${9 * scale}px Inter, system-ui, sans-serif`;
-    context.fillText(entry.label.toUpperCase(), centerX, top + 42 * scale);
+    context.fillText(entry.label.toUpperCase(), centerX, top + 42 * scale + centeredTextOffsetY);
   });
   context.textAlign = 'start';
+}
+
+export function paintVariometerGauge(
+  context: CanvasRenderingContext2D,
+  dimensions: OutputDimensions,
+  valueMps: number,
+  scaleMps: number,
+  settings: ProjectSettings,
+): void {
+  if (!settings.overlay.enabled || !settings.overlay.variometerGauge) return;
+  const unit = Math.min(dimensions.width, dimensions.height) / 600;
+  const rail = {
+    x: dimensions.width - 20 * unit,
+    y: dimensions.height * 0.2 + 13 * unit,
+    width: 8 * unit,
+    height: dimensions.height * 0.6 - 26 * unit,
+  };
+  const clampedValue = Math.max(-scaleMps, Math.min(scaleMps, valueMps));
+  const valueY = rail.y + ((scaleMps - clampedValue) / (scaleMps * 2)) * rail.height;
+  const zeroY = rail.y + rail.height / 2;
+
+  context.save();
+  drawGaugeRail(context, rail, valueY, zeroY, unit);
+  drawGaugeValue(context, rail.x, zeroY, valueMps, unit);
+  drawGaugeLimits(context, rail, scaleMps, unit);
+  context.restore();
 }
 
 export function paintWatermark(
@@ -113,6 +140,109 @@ function createOverlayEntries(
     entries.push({ label: 'Time', value: formatFlightTime(fix.elapsedSeconds) });
   }
   return entries;
+}
+
+interface GaugeRail {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function drawGaugeRail(
+  context: CanvasRenderingContext2D,
+  rail: GaugeRail,
+  valueY: number,
+  zeroY: number,
+  unit: number,
+): void {
+  const baseGradient = createGaugeGradient(context, rail, '#70aa83', '#dededb', '#b9757b');
+  const levelGradient = createGaugeGradient(context, rail, '#00ff62', '#fffef7', '#ff0026');
+  context.save();
+  context.beginPath();
+  context.roundRect(rail.x, rail.y, rail.width, rail.height, 5 * unit);
+  context.clip();
+  context.fillStyle = baseGradient;
+  context.fillRect(rail.x, rail.y, rail.width, rail.height);
+  context.fillStyle = levelGradient;
+  context.fillRect(rail.x, Math.min(valueY, zeroY), rail.width, Math.abs(valueY - zeroY));
+  context.restore();
+  context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+  context.lineWidth = Math.max(1, unit);
+  strokeRoundedRect(context, rail.x, rail.y, rail.width, rail.height, 5 * unit);
+  context.beginPath();
+  context.moveTo(rail.x - 7 * unit, zeroY);
+  context.lineTo(rail.x, zeroY);
+  context.strokeStyle = 'rgba(255, 255, 255, 0.82)';
+  context.stroke();
+}
+
+function createGaugeGradient(
+  context: CanvasRenderingContext2D,
+  rail: GaugeRail,
+  topColor: string,
+  middleColor: string,
+  bottomColor: string,
+): CanvasGradient {
+  const gradient = context.createLinearGradient(0, rail.y, 0, rail.y + rail.height);
+  gradient.addColorStop(0, topColor);
+  gradient.addColorStop(0.5, middleColor);
+  gradient.addColorStop(1, bottomColor);
+  return gradient;
+}
+
+function drawGaugeValue(
+  context: CanvasRenderingContext2D,
+  railX: number,
+  zeroY: number,
+  valueMps: number,
+  unit: number,
+): void {
+  const value = `${valueMps >= 0 ? '+' : ''}${valueMps.toFixed(1)}`;
+  context.font = `650 ${13 * unit}px Inter, system-ui, sans-serif`;
+  const valueWidth = context.measureText(value).width;
+  context.font = `650 ${7 * unit}px Inter, system-ui, sans-serif`;
+  const unitWidth = context.measureText('m/s').width;
+  const width = valueWidth + unitWidth + 16 * unit;
+  const height = 25 * unit;
+  const x = railX - width - 13 * unit;
+  drawRoundedRect(
+    context,
+    x,
+    zeroY - height / 2,
+    width,
+    height,
+    5 * unit,
+    'rgba(15, 20, 17, 0.76)',
+  );
+  context.beginPath();
+  context.moveTo(x + width, zeroY - 4 * unit);
+  context.lineTo(x + width + 5 * unit, zeroY);
+  context.lineTo(x + width, zeroY + 4 * unit);
+  context.fillStyle = 'rgba(15, 20, 17, 0.76)';
+  context.fill();
+  context.textBaseline = 'middle';
+  context.textAlign = 'left';
+  context.fillStyle = '#fff';
+  context.font = `650 ${13 * unit}px Inter, system-ui, sans-serif`;
+  context.fillText(value, x + 6 * unit, zeroY);
+  context.font = `650 ${7 * unit}px Inter, system-ui, sans-serif`;
+  context.fillText('m/s', x + 10 * unit + valueWidth, zeroY);
+}
+
+function drawGaugeLimits(
+  context: CanvasRenderingContext2D,
+  rail: GaugeRail,
+  scaleMps: number,
+  unit: number,
+): void {
+  const scale = scaleMps.toFixed(1);
+  context.fillStyle = '#fff';
+  context.font = `650 ${7 * unit}px Inter, system-ui, sans-serif`;
+  context.textAlign = 'right';
+  context.textBaseline = 'middle';
+  context.fillText(`+${scale}`, rail.x + rail.width, rail.y - 7 * unit);
+  context.fillText(`-${scale}`, rail.x + rail.width, rail.y + rail.height + 7 * unit);
 }
 
 function drawRoundedRect(

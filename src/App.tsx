@@ -306,7 +306,15 @@ export default function App() {
           </div>
           {message && (
             <div className="message-banner" role="alert">
-              {message}
+              <span>{message}</span>
+              <button
+                type="button"
+                className="message-banner__close"
+                aria-label="Dismiss error"
+                onClick={() => setMessage(null)}
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
             </div>
           )}
           {track && track.warnings.length > 0 && (
