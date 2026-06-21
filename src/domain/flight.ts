@@ -60,6 +60,27 @@ export function calculateSegmentDistanceMeters(
   return Math.max(0, current.cumulativeDistanceMeters - start.cumulativeDistanceMeters);
 }
 
+export function calculateVariometerMps(
+  track: FlightTrack,
+  elapsedSeconds: number,
+  updateRateFlightSeconds: number,
+  updateAnchorSeconds = 0,
+): number {
+  const updateRate = Math.max(0.001, updateRateFlightSeconds);
+  const elapsedSinceAnchor = Math.max(0, elapsedSeconds - updateAnchorSeconds);
+  const sampledSeconds =
+    updateAnchorSeconds +
+    Math.floor((elapsedSinceAnchor + Number.EPSILON) / updateRate) * updateRate;
+  const current = interpolateFlight(track, sampledSeconds);
+  const start = interpolateFlight(
+    track,
+    Math.max(updateAnchorSeconds, sampledSeconds - updateRate),
+  );
+  const durationSeconds = current.elapsedSeconds - start.elapsedSeconds;
+  if (durationSeconds <= 0) return 0;
+  return (current.altitudeMeters - start.altitudeMeters) / durationSeconds;
+}
+
 export function locateTrackDistance(
   track: FlightTrack,
   distanceMeters: number,

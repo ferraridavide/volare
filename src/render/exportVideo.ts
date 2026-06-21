@@ -7,9 +7,13 @@ import {
   type StreamTargetChunk,
 } from 'mediabunny';
 
-import { calculateSegmentDistanceMeters, interpolateFlight } from '@/domain/flight';
+import {
+  calculateSegmentDistanceMeters,
+  calculateVariometerMps,
+  interpolateFlight,
+} from '@/domain/flight';
 import { interpolateCameraSettings } from '@/domain/keyframes';
-import { getOutputDimensions } from '@/domain/settings';
+import { calculateFlightSecondsPerVideoSecond, getOutputDimensions } from '@/domain/settings';
 import type { FlightTrack, ProjectSettings, RenderJob } from '@/domain/types';
 import type { CesiumFlightScene } from '@/scene/CesiumFlightScene';
 
@@ -190,7 +194,13 @@ function compositeFrame(
     flightSeconds,
     settings.trimStartSeconds,
   );
-  paintStatsOverlay(context, canvas, fix, segmentDistance, settings);
+  const variometer = calculateVariometerMps(
+    track,
+    flightSeconds,
+    settings.overlay.variometerUpdateRateSeconds * calculateFlightSecondsPerVideoSecond(settings),
+    settings.trimStartSeconds,
+  );
+  paintStatsOverlay(context, canvas, fix, segmentDistance, variometer, settings);
   paintWatermark(context, canvas, settings);
 }
 

@@ -39,6 +39,8 @@ export function createDefaultSettings(
       enabled: true,
       altitude: true,
       speed: true,
+      variometer: true,
+      variometerUpdateRateSeconds: 0.2,
       distance: true,
       time: true,
       watermark: true,
@@ -113,6 +115,7 @@ export function sanitizeSettings(
       .sort((a, b) => a.flightSeconds - b.flightSeconds),
     overlay: {
       ...settings.overlay,
+      variometerUpdateRateSeconds: clamp(settings.overlay.variometerUpdateRateSeconds, 0.1, 5),
       backgroundOpacity: clamp(settings.overlay.backgroundOpacity, 0, 1),
     },
     routeStyle: {

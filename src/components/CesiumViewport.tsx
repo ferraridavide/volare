@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
-import type { FlightTrack, ProjectSettings } from '@/domain/types';
+import { adjustCameraFromDrag } from '@/domain/camera';
+import type { CameraSettings, FlightTrack, ProjectSettings } from '@/domain/types';
 import { CesiumFlightScene } from '@/scene/CesiumFlightScene';
 
 import { StatsOverlay } from './StatsOverlay';
@@ -14,14 +15,28 @@ interface CesiumViewportProps {
   track: FlightTrack | null;
   flightSeconds: number;
   settings: ProjectSettings;
+  camera: CameraSettings;
+  disabled: boolean;
+  onCameraChange: (camera: CameraSettings) => void;
   onError: (message: string) => void;
 }
 
+interface CameraDrag {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  camera: CameraSettings;
+}
+
 export const CesiumViewport = forwardRef<CesiumViewportHandle, CesiumViewportProps>(
-  function CesiumViewport({ ionToken, track, flightSeconds, settings, onError }, ref) {
+  function CesiumViewport(
+    { ionToken, track, flightSeconds, settings, camera, disabled, onCameraChange, onError },
+    ref,
+  ) {
     const containerRef = useRef<HTMLDivElement>(null);
     const creditRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<CesiumFlightScene | null>(null);
+    const dragRef = useRef<CameraDrag | null>(null);
     const [sceneVersion, setSceneVersion] = useState(0);
 
     useImperativeHandle(ref, () => ({ getScene: () => sceneRef.current }), []);
@@ -62,7 +77,37 @@ export const CesiumViewport = forwardRef<CesiumViewportHandle, CesiumViewportPro
 
     return (
       <div className={viewportClassName}>
-        <div ref={containerRef} className="cesium-host" aria-label="3D flight preview" />
+        <div
+          ref={containerRef}
+          className="cesium-host"
+          aria-label="3D flight preview"
+          onPointerDown={(event) => {
+            if (disabled || !track || event.button !== 0) return;
+            dragRef.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              camera,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+            event.currentTarget.classList.add('cesium-host--dragging');
+          }}
+          onPointerMove={(event) => {
+            const drag = dragRef.current;
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            onCameraChange(
+              adjustCameraFromDrag(
+                drag.camera,
+                event.clientX - drag.startX,
+                event.clientY - drag.startY,
+              ),
+            );
+          }}
+          onPointerUp={(event) => finishCameraDrag(event.currentTarget, event.pointerId, dragRef)}
+          onPointerCancel={(event) =>
+            finishCameraDrag(event.currentTarget, event.pointerId, dragRef)
+          }
+        />
         {!ionToken && (
           <div className="viewport-placeholder">
             <div className="placeholder-orbit" />
@@ -90,3 +135,14 @@ export const CesiumViewport = forwardRef<CesiumViewportHandle, CesiumViewportPro
     );
   },
 );
+
+function finishCameraDrag(
+  target: HTMLDivElement,
+  pointerId: number,
+  dragRef: { current: CameraDrag | null },
+): void {
+  if (dragRef.current?.pointerId !== pointerId) return;
+  dragRef.current = null;
+  if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+  target.classList.remove('cesium-host--dragging');
+}

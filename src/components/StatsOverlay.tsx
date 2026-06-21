@@ -1,5 +1,10 @@
 import { formatAltitude, formatDistance, formatFlightTime, formatSpeed } from '@/domain/format';
-import { calculateSegmentDistanceMeters, interpolateFlight } from '@/domain/flight';
+import {
+  calculateSegmentDistanceMeters,
+  calculateVariometerMps,
+  interpolateFlight,
+} from '@/domain/flight';
+import { calculateFlightSecondsPerVideoSecond } from '@/domain/settings';
 import type { FlightTrack, ProjectSettings } from '@/domain/types';
 
 interface StatsOverlayProps {
@@ -11,6 +16,13 @@ interface StatsOverlayProps {
 export function StatsOverlay({ track, flightSeconds, settings }: StatsOverlayProps) {
   const fix = interpolateFlight(track, flightSeconds);
   const distance = calculateSegmentDistanceMeters(track, flightSeconds, settings.trimStartSeconds);
+  const flightSecondsPerVideoSecond = calculateFlightSecondsPerVideoSecond(settings);
+  const variometer = calculateVariometerMps(
+    track,
+    flightSeconds,
+    settings.overlay.variometerUpdateRateSeconds * flightSecondsPerVideoSecond,
+    settings.trimStartSeconds,
+  );
 
   return (
     <>
@@ -33,6 +45,12 @@ export function StatsOverlay({ track, flightSeconds, settings }: StatsOverlayPro
           )}
           {settings.overlay.speed && (
             <Stat label="Speed" value={formatSpeed(fix.groundSpeedMps, settings.unitSystem)} />
+          )}
+          {settings.overlay.variometer && (
+            <Stat
+              label="Vario"
+              value={`${variometer >= 0 ? '+' : ''}${variometer.toFixed(2)} m/s`}
+            />
           )}
           {settings.overlay.distance && (
             <Stat label="Distance" value={formatDistance(distance, settings.unitSystem)} />

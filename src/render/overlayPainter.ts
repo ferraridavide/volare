@@ -6,10 +6,11 @@ export function paintStatsOverlay(
   dimensions: OutputDimensions,
   fix: FlightFix,
   segmentDistanceMeters: number,
+  variometerMps: number,
   settings: ProjectSettings,
 ): void {
   if (!settings.overlay.enabled) return;
-  const entries = createOverlayEntries(fix, segmentDistanceMeters, settings);
+  const entries = createOverlayEntries(fix, segmentDistanceMeters, variometerMps, settings);
   if (!entries.length) return;
 
   const portrait = dimensions.height > dimensions.width;
@@ -83,6 +84,7 @@ export function paintWatermark(
 function createOverlayEntries(
   fix: FlightFix,
   segmentDistanceMeters: number,
+  variometerMps: number,
   settings: ProjectSettings,
 ): Array<{ label: string; value: string }> {
   const entries: Array<{ label: string; value: string }> = [];
@@ -94,6 +96,12 @@ function createOverlayEntries(
   }
   if (settings.overlay.speed) {
     entries.push({ label: 'Speed', value: formatSpeed(fix.groundSpeedMps, settings.unitSystem) });
+  }
+  if (settings.overlay.variometer) {
+    entries.push({
+      label: 'Vario',
+      value: `${variometerMps >= 0 ? '+' : ''}${variometerMps.toFixed(2)} m/s`,
+    });
   }
   if (settings.overlay.distance) {
     entries.push({

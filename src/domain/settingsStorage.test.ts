@@ -102,4 +102,46 @@ describe('settings preset storage', () => {
     expect(loadSettingsPreset().overlay.time).toBe(true);
     expect(loadSettingsPreset().overlay.watermark).toBe(true);
   });
+
+  it('adds variometer defaults to version 4 presets', () => {
+    const legacySettings = createDefaultSettings();
+    const legacyOverlay = Object.fromEntries(
+      Object.entries(legacySettings.overlay).filter(
+        ([key]) => !['variometer', 'variometerSamples'].includes(key),
+      ),
+    );
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ version: 4, settings: { ...legacySettings, overlay: legacyOverlay } }),
+    );
+
+    expect(loadSettingsPreset().overlay.variometer).toBe(true);
+    expect(loadSettingsPreset().overlay.variometerUpdateRateSeconds).toBe(0.2);
+  });
+
+  it('adds the variometer update rate to version 5 presets', () => {
+    const legacySettings = createDefaultSettings();
+    const legacyOverlay = Object.fromEntries(
+      Object.entries(legacySettings.overlay).filter(
+        ([key]) => key !== 'variometerUpdateRateSeconds',
+      ),
+    );
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ version: 5, settings: { ...legacySettings, overlay: legacyOverlay } }),
+    );
+
+    expect(loadSettingsPreset().overlay.variometerUpdateRateSeconds).toBe(0.2);
+  });
+
+  it('removes the legacy variometer sample count from version 6 presets', () => {
+    const legacySettings = createDefaultSettings();
+    const legacyOverlay = { ...legacySettings.overlay, variometerSamples: 5 };
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ version: 6, settings: { ...legacySettings, overlay: legacyOverlay } }),
+    );
+
+    expect(loadSettingsPreset().overlay).not.toHaveProperty('variometerSamples');
+  });
 });

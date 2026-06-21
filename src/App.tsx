@@ -298,6 +298,9 @@ export default function App() {
               track={track}
               flightSeconds={flightSeconds}
               settings={settings}
+              camera={displayedCamera}
+              disabled={!track || isRendering}
+              onCameraChange={updateCamera}
               onError={handleSceneError}
             />
           </div>

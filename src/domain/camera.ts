@@ -3,6 +3,7 @@ import { interpolateFlight } from './flight';
 import type { CameraPose, CameraSettings, FlightTrack } from './types';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
+const DRAG_DEGREES_PER_PIXEL = 0.25;
 const SMOOTHING_SAMPLES = [
   { offset: -0.5, weight: 1 },
   { offset: -0.375, weight: 2 },
@@ -14,6 +15,24 @@ const SMOOTHING_SAMPLES = [
   { offset: 0.375, weight: 2 },
   { offset: 0.5, weight: 1 },
 ] as const;
+
+export function adjustCameraFromDrag(
+  camera: CameraSettings,
+  deltaX: number,
+  deltaY: number,
+): CameraSettings {
+  return {
+    ...camera,
+    elevationAngleDegrees: clamp(
+      camera.elevationAngleDegrees + deltaY * DRAG_DEGREES_PER_PIXEL,
+      -75,
+      75,
+    ),
+    fixedHeadingDegrees: camera.fixedHeadingEnabled
+      ? normalizeDegrees(camera.fixedHeadingDegrees + deltaX * DRAG_DEGREES_PER_PIXEL)
+      : camera.fixedHeadingDegrees,
+  };
+}
 
 export function calculateCameraPose(
   track: FlightTrack,

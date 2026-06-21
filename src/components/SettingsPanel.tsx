@@ -144,13 +144,69 @@ export function SettingsPanel({
         <RangeField
           label="Camera elevation"
           value={camera.elevationAngleDegrees}
-          min={0}
+          min={-75}
           max={75}
           step={1}
           suffix="°"
           disabled={disabled}
           onChange={(value) => updateCamera('elevationAngleDegrees', value)}
         />
+          <RangeField
+            label="Follow smoothing"
+            value={camera.followSmoothingSeconds}
+            min={0}
+            max={5}
+            step={0.05}
+            suffix=" video s"
+            disabled={disabled}
+            onChange={(value) => updateCamera('followSmoothingSeconds', value)}
+          />
+          <RangeField
+            label="Heading smoothing"
+            value={camera.headingSmoothingSeconds}
+            min={0.05}
+            max={20}
+            step={0.05}
+            suffix=" video s"
+            disabled={disabled || camera.fixedHeadingEnabled}
+            onChange={(value) => updateCamera('headingSmoothingSeconds', value)}
+          />
+          <RangeField
+            label="Heading offset"
+            value={camera.headingOffsetDegrees}
+            min={-180}
+            max={180}
+            step={1}
+            suffix="°"
+            disabled={disabled || camera.fixedHeadingEnabled}
+            onChange={(value) => updateCamera('headingOffsetDegrees', value)}
+          />
+          <ToggleField
+            label="Use fixed heading"
+            checked={camera.fixedHeadingEnabled}
+            disabled={disabled}
+            onChange={(value) => updateCamera('fixedHeadingEnabled', value)}
+          />
+          <RangeField
+            label="Fixed heading"
+            value={camera.fixedHeadingDegrees}
+            min={0}
+            max={360}
+            step={1}
+            suffix="°"
+            disabled={disabled || !camera.fixedHeadingEnabled}
+            onChange={(value) => updateCamera('fixedHeadingDegrees', value)}
+          />
+          <RangeField
+            label="Field of view"
+            value={camera.fieldOfViewDegrees}
+            min={15}
+            max={100}
+            step={1}
+            suffix="°"
+            disabled={disabled}
+            onChange={(value) => updateCamera('fieldOfViewDegrees', value)}
+          />
         <RangeField
           label="Look ahead"
           value={camera.lookAheadSeconds}
@@ -170,62 +226,6 @@ export function SettingsPanel({
           suffix=" video s"
           disabled={disabled}
           onChange={(value) => updateCamera('lagSeconds', value)}
-        />
-        <RangeField
-          label="Follow smoothing"
-          value={camera.followSmoothingSeconds}
-          min={0}
-          max={5}
-          step={0.05}
-          suffix=" video s"
-          disabled={disabled}
-          onChange={(value) => updateCamera('followSmoothingSeconds', value)}
-        />
-        <RangeField
-          label="Heading smoothing"
-          value={camera.headingSmoothingSeconds}
-          min={0.05}
-          max={20}
-          step={0.05}
-          suffix=" video s"
-          disabled={disabled || camera.fixedHeadingEnabled}
-          onChange={(value) => updateCamera('headingSmoothingSeconds', value)}
-        />
-        <RangeField
-          label="Heading offset"
-          value={camera.headingOffsetDegrees}
-          min={-180}
-          max={180}
-          step={1}
-          suffix="°"
-          disabled={disabled || camera.fixedHeadingEnabled}
-          onChange={(value) => updateCamera('headingOffsetDegrees', value)}
-        />
-        <ToggleField
-          label="Use fixed heading"
-          checked={camera.fixedHeadingEnabled}
-          disabled={disabled}
-          onChange={(value) => updateCamera('fixedHeadingEnabled', value)}
-        />
-        <RangeField
-          label="Fixed heading"
-          value={camera.fixedHeadingDegrees}
-          min={0}
-          max={360}
-          step={1}
-          suffix="°"
-          disabled={disabled || !camera.fixedHeadingEnabled}
-          onChange={(value) => updateCamera('fixedHeadingDegrees', value)}
-        />
-        <RangeField
-          label="Field of view"
-          value={camera.fieldOfViewDegrees}
-          min={15}
-          max={100}
-          step={1}
-          suffix="°"
-          disabled={disabled}
-          onChange={(value) => updateCamera('fieldOfViewDegrees', value)}
         />
         <RangeField
           label="Terrain clearance"
@@ -260,6 +260,12 @@ export function SettingsPanel({
             onChange={(value) => updateOverlay('speed', value)}
           />
           <ToggleField
+            label="Variometer"
+            checked={settings.overlay.variometer}
+            disabled={disabled || !settings.overlay.enabled}
+            onChange={(value) => updateOverlay('variometer', value)}
+          />
+          <ToggleField
             label="Distance"
             checked={settings.overlay.distance}
             disabled={disabled || !settings.overlay.enabled}
@@ -272,6 +278,16 @@ export function SettingsPanel({
             onChange={(value) => updateOverlay('time', value)}
           />
         </div>
+        <RangeField
+          label="Variometer update rate"
+          value={settings.overlay.variometerUpdateRateSeconds}
+          min={0.1}
+          max={5}
+          step={0.1}
+          suffix=" playback s"
+          disabled={disabled || !settings.overlay.enabled || !settings.overlay.variometer}
+          onChange={(value) => updateOverlay('variometerUpdateRateSeconds', value)}
+        />
         <ToggleField
           label="Show Volare watermark"
           checked={settings.overlay.watermark}

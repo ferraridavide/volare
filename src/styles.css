@@ -199,6 +199,12 @@ h2 {
 .cesium-host {
   position: absolute;
   inset: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.cesium-host--dragging {
+  cursor: grabbing;
 }
 .cesium-host .cesium-viewer,
 .cesium-host .cesium-viewer-cesiumWidgetContainer,

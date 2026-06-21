@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateCameraPose, smoothCameraPose } from './camera';
-import { interpolateFlight, locateTrackDistance } from './flight';
+import { adjustCameraFromDrag, calculateCameraPose, smoothCameraPose } from './camera';
+import { calculateVariometerMps, interpolateFlight, locateTrackDistance } from './flight';
 import { calculateDistanceMeters } from './geo';
 import { parseIgc } from './igc';
 import {
@@ -19,6 +19,24 @@ const TRACK_TEXT = [
 ].join('\n');
 
 describe('flight interpolation', () => {
+  it('maps viewport dragging to elevation and fixed heading', () => {
+    const camera = createDefaultSettings().camera;
+    const adjusted = adjustCameraFromDrag(camera, 40, 20);
+
+    expect(adjusted.elevationAngleDegrees).toBe(25);
+    expect(adjusted.fixedHeadingDegrees).toBe(10);
+    expect(
+      adjustCameraFromDrag({ ...camera, fixedHeadingEnabled: false }, 40, 20).fixedHeadingDegrees,
+    ).toBe(0);
+  });
+
+  it('allows viewport dragging to move camera elevation below zero', () => {
+    const camera = createDefaultSettings().camera;
+
+    expect(adjustCameraFromDrag(camera, 0, -120).elevationAngleDegrees).toBe(-10);
+    expect(adjustCameraFromDrag(camera, 0, -1000).elevationAngleDegrees).toBe(-75);
+  });
+
   it('interpolates position, altitude, and offset', () => {
     const track = parseIgc(TRACK_TEXT);
     const fix = interpolateFlight(track, 5, 25);
@@ -26,6 +44,29 @@ describe('flight interpolation', () => {
     expect(fix.latitudeDegrees).toBeCloseTo(45.008333, 5);
     expect(fix.altitudeMeters).toBe(1075);
     expect(fix.sourceIndex).toBe(0);
+  });
+
+  it('calculates variometer average over the update interval', () => {
+    const track = parseIgc(TRACK_TEXT);
+
+    expect(calculateVariometerMps(track, 15, 5)).toBeCloseTo(10);
+    expect(calculateVariometerMps(track, 0, 5)).toBe(0);
+  });
+
+  it('holds the variometer value until the next update interval', () => {
+    const track = parseIgc(TRACK_TEXT);
+
+    expect(calculateVariometerMps(track, 15.01, 0.2)).toBe(
+      calculateVariometerMps(track, 15.19, 0.2),
+    );
+  });
+
+  it('anchors variometer updates to the trimmed flight start', () => {
+    const track = parseIgc(TRACK_TEXT);
+
+    expect(calculateVariometerMps(track, 15.01, 2, 15)).toBe(
+      calculateVariometerMps(track, 16.99, 2, 15),
+    );
   });
 
   it('maps output time into the selected flight range', () => {
